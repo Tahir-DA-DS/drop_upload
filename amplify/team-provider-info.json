@@ -1,0 +1,29 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-dropupload-dev-a29f2-authRole",
+      "UnauthRoleArn": "arn:aws:iam::515966497218:role/amplify-dropupload-dev-a29f2-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::515966497218:role/amplify-dropupload-dev-a29f2-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-dropupload-dev-a29f2-deployment",
+      "UnauthRoleName": "amplify-dropupload-dev-a29f2-unauthRole",
+      "StackName": "amplify-dropupload-dev-a29f2",
+      "StackId": "arn:aws:cloudformation:us-east-1:515966497218:stack/amplify-dropupload-dev-a29f2/7847a770-08b5-11f0-9252-0ebac815dd1f",
+      "AmplifyAppId": "d1nje9zo0zflis"
+    },
+    "categories": {
+      "auth": {
+        "dropupload51eaa62e": {}
+      },
+      "function": {
+        "S3Trigger0d78b8c1": {
+          "deploymentBucketName": "amplify-dropupload-dev-a29f2-deployment",
+          "s3Key": "amplify-builds/S3Trigger0d78b8c1-2f7759784239414c6a65-build.zip"
+        }
+      },
+      "storage": {
+        "filestorage": {}
+      }
+    }
+  }
+}

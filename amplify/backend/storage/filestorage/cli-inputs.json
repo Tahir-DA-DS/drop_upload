@@ -1,0 +1,14 @@
+{
+  "resourceName": "filestorage",
+  "policyUUID": "cc7646f3",
+  "bucketName": "uploadbucket",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "S3Trigger0d78b8c1",
+  "groupAccess": {}
+}
