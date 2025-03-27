@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { uploadData, getUrl } from "aws-amplify/storage";
 import { Amplify } from "aws-amplify";
 import { withAuthenticator } from "@aws-amplify/ui-react";
-import { StorageImage } from "@aws-amplify/ui-react-storage";
 import "@aws-amplify/ui-react/styles.css";
+import "bootstrap/dist/css/bootstrap.min.css";
 import awsExports from "./aws-exports";
 
 Amplify.configure(awsExports);
@@ -47,7 +47,7 @@ function App({ signOut, user }) {
           });
 
           alert("File uploaded successfully!");
-          setFileList((prev) => [...prev, filePath]); // Append new file path
+          setFileList((prev) => [...prev, filePath]); 
         } catch (e) {
           console.error("Error uploading file:", e);
           alert("Upload failed!");
@@ -73,36 +73,44 @@ function App({ signOut, user }) {
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h1>Welcome, {user?.username}!</h1>
-      <button onClick={signOut}>Sign Out</button>
+    <div className="container py-4 d-flex flex-column justify-content-center align-items-center min-vh-100">
+  <div className="d-flex justify-content-between align-items-center mb-4 w-100">
+    <h1>Welcome, {user?.username}!</h1>
+    <button className="btn btn-danger" onClick={signOut}>Sign Out</button>
+  </div>
 
-      <h2>Upload a File</h2>
-      <input type="file" onChange={handleFileChange} />
-      <button onClick={handleUpload} disabled={uploading}>
+  <div className="card p-4 shadow-sm mb-4 w-75">
+    <h2>Upload a File</h2>
+    <div className="input-group mb-3">
+      <input type="file" className="form-control" onChange={handleFileChange} />
+      <button className="btn btn-primary" onClick={handleUpload} disabled={uploading}>
         {uploading ? `Uploading... ${progress}%` : "Upload"}
       </button>
-
-      {/* Upload Progress Bar */}
-      {uploading && (
-        <div style={{ marginTop: "10px", width: "300px", height: "10px", background: "#ddd" }}>
-          <div style={{ width: `${progress}%`, height: "100%", background: "green" }}></div>
-        </div>
-      )}
-
-      <h2>Uploaded Files</h2>
-      <ul>
-        {fileList.map((filePath, index) => (
-          <li key={index}>
-            {filePath} -{" "}
-            <button onClick={() => handleDownload(filePath)}>Download</button>
-            {filePath.endsWith(".png") || filePath.endsWith(".jpg") ? (
-              <StorageImage path={filePath} alt="Uploaded file" width="100px" />
-            ) : null}
-          </li>
-        ))}
-      </ul>
     </div>
+
+    {uploading && (
+      <div className="progress mt-2">
+        <div className="progress-bar" role="progressbar" style={{ width: `${progress}%` }}>
+          {progress}%
+        </div>
+      </div>
+    )}
+  </div>
+
+  <h2>Uploaded Files</h2>
+  <div className="row justify-content-center w-75">
+    {fileList.map((filePath, index) => (
+      <div key={index} className="col-md-4">
+        <div className="card p-3 shadow-sm mb-3">
+          <p className="mb-2">{filePath.split("/").pop()}</p>
+          <button className="btn btn-success" onClick={() => handleDownload(filePath)}>
+            Download
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
   );
 }
 
