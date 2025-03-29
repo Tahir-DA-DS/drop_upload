@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { uploadData, getUrl } from "aws-amplify/storage";
-import { Amplify } from "aws-amplify";
+import React, { useState, useEffect } from "react";
+import { uploadData, getUrl, list } from "aws-amplify/storage";
+import { Amplify} from "aws-amplify";
 import { withAuthenticator } from "@aws-amplify/ui-react";
+import { FaFolder, FaFile, FaDownload, FaArrowLeft } from "react-icons/fa";
 import "@aws-amplify/ui-react/styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import awsExports from "./aws-exports";
@@ -10,12 +11,64 @@ Amplify.configure(awsExports);
 
 function App({ signOut, user }) {
   const [file, setFile] = useState(null);
+  const [folder, setFolder] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [fileList, setFileList] = useState([]);
+  const [currentPath, setCurrentPath] = useState("uploads/");
+  const [presignedUrl, setPresignedUrl] = useState("");
+
+  useEffect(() => {
+    fetchFileList();
+  }, [currentPath]);
+
+
+
+
+
+  const fetchFileList = async () => {
+    try {
+      const result = await list({ path: currentPath });
+      const { files, folders } = processStorageList(result);
+      setFileList([...folders, ...files.map((file) => file.path)]);
+    } catch (error) {
+      console.error("Error fetching file list:", error);
+    }
+  };
+
+  function processStorageList(response) {
+    let files = [];
+    let folders = new Set();
+    response.items.forEach((res) => {
+      if (res.size) {
+        files.push(res);
+        let possibleFolder = res.path.split("/").slice(0, -1).join("/");
+        if (possibleFolder) folders.add(possibleFolder + "/");
+      } else {
+        folders.add(res.path);
+      }
+    });
+    return { files, folders: [...folders] };
+  }
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
+  };
+
+  const handleFolderChange = (event) => {
+    setFolder(event.target.value);
+  };
+
+  const getVersionedFileName = (existingFiles, fileName) => {
+    if (!existingFiles.includes(fileName)) return fileName;
+
+    let nameWithoutExt = fileName.replace(/\.[^/.]+$/, ""); // Remove extension
+    let extension = fileName.split(".").pop();
+    let counter = 1;
+
+    while (existingFiles.includes(`${nameWithoutExt}(${counter}).${extension}`)) {
+      counter++;
+    }
+    return `${nameWithoutExt}(${counter}).${extension}`;
   };
 
   const handleUpload = async () => {
@@ -25,95 +78,119 @@ function App({ signOut, user }) {
     }
 
     setUploading(true);
-    setProgress(0);
 
     try {
-      const fileReader = new FileReader();
-      fileReader.readAsArrayBuffer(file);
+      let folderPath = folder ? `${currentPath}${folder}/` : currentPath;
+      let existingFiles = fileList.map((f) => f.split("/").pop());
+      let fileName = getVersionedFileName(existingFiles, file.name);
+      let filePath = `${folderPath}${fileName}`;
 
-      fileReader.onload = async (event) => {
-        console.log("File read successfully!", event.target.result);
+      console.log(`Uploading to: ${filePath}`);
 
-        try {
-          const filePath = `uploads/${file.name}`;
-          await uploadData({
-            data: event.target.result,
-            path: filePath,
-            options: {
-              onProgress: (progress) => {
-                setProgress(Math.round((progress.transferredBytes / progress.totalBytes) * 100));
-              },
-            },
-          });
+      await uploadData({
+        data: await file.arrayBuffer(),
+        path: filePath,
+      });
 
-          alert("File uploaded successfully!");
-          setFileList((prev) => [...prev, filePath]); 
-        } catch (e) {
-          console.error("Error uploading file:", e);
-          alert("Upload failed!");
-        } finally {
-          setUploading(false);
-          setProgress(0);
-        }
-      };
-    } catch (e) {
-      console.error("File read error:", e);
+      alert("File uploaded successfully!");
+      fetchFileList();
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Upload failed!");
+    } finally {
       setUploading(false);
     }
   };
 
-  const handleDownload = async (path) => {
-    try {
-      const url = await getUrl({ path });
-      window.open(url, "_blank");
-    } catch (error) {
-      console.error("Error downloading file:", error);
-      alert("Download failed!");
+  const handleNavigateToFolder = (folderName) => {
+    setCurrentPath(`${currentPath}${folderName}/`);
+  };
+
+  const handleGoBack = () => {
+    if (currentPath !== "uploads/") {
+      let newPath = currentPath.split("/").slice(0, -2).join("/") + "/";
+      setCurrentPath(newPath || "uploads/");
     }
   };
 
+  const handleDownload = async (filePath) => {
+    try {
+        const urlObject = await getUrl({ path: filePath, options: { expiresIn: 300 } }); 
+        const url = urlObject.url || urlObject; 
+
+        setPresignedUrl(url); 
+
+        // Trigger a download
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filePath.split("/").pop();
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+    } catch (error) {
+        console.error("Error generating download link:", error);
+        alert("Download failed!");
+    }
+};
+
   return (
-    <div className="container py-4 d-flex flex-column justify-content-center align-items-center min-vh-100">
-  
-    <div className="d-flex justify-content-between align-items-center w-75 mb-4">
-      <h1 className="text-center flex-grow-1">Welcome, to your S3 Storage Upload!</h1>
-      <button className="btn btn-danger ms-3" onClick={signOut}>Sign Out</button>
-    </div>
-  
-    
-    <div className="card p-4 shadow-sm mb-4 w-50">
-      <h2 className="text-center">Upload a File</h2>
-      <div className="input-group mb-3">
-        <input type="file" className="form-control" onChange={handleFileChange} />
-        <button className="btn btn-primary" onClick={handleUpload} disabled={uploading}>
-          {uploading ? `Uploading... ${progress}%` : "Upload"}
+    <div className="container text-center mt-4">
+      <h1>Welcome, {user.signInDetails.loginId}!</h1>
+      <button className="btn btn-danger mb-3" onClick={signOut}>
+        Sign Out
+      </button>
+
+      <h2>Create a Folder / Upload a File</h2>
+      <input type="text" placeholder="Folder Name (optional)" onChange={handleFolderChange} className="form-control mb-2" />
+      <input type="file" onChange={handleFileChange} className="form-control mb-2" />
+      <button onClick={handleUpload} disabled={uploading} className="btn btn-primary mb-3">
+        {uploading ? "Uploading..." : "Upload"}
+      </button>
+
+      {currentPath !== "uploads/" && (
+        <button onClick={handleGoBack} className="btn btn-secondary mb-3">
+          <FaArrowLeft className="me-1" /> Go Back
         </button>
-      </div>
-  
-      {uploading && (
-        <div className="progress mt-2">
-          <div className="progress-bar" role="progressbar" style={{ width: `${progress}%` }}>
-            {progress}%
-          </div>
+      )}
+
+      <h2>Files & Folders</h2>
+      <ul className="list-group">
+        {fileList.length === 0 ? (
+          <li className="list-group-item">No files found.</li>
+        ) : (
+          fileList.map((filePath, index) => {
+            const fileName = filePath.split("/").filter(Boolean).pop();
+            const isFolder = filePath.endsWith("/");
+
+            return (
+              <li key={index} className="list-group-item d-flex align-items-center justify-content-between">
+                {isFolder ? (
+                  <button onClick={() => handleNavigateToFolder(fileName)} className="btn btn-link text-dark">
+                    <FaFolder className="me-2 text-warning" /> {fileName}
+                  </button>
+                ) : (
+                  <span>
+                    <FaFile className="me-2 text-primary" /> {fileName}
+                  </span>
+                )}
+                {!isFolder && (
+                  <button onClick={() => handleDownload(filePath)} className="btn btn-sm btn-success">
+                    <FaDownload className="me-1" /> Download
+                  </button>
+                )}
+              </li>
+            );
+          })
+        )}
+      </ul>
+
+      {presignedUrl && (
+        <div className="mt-3">
+          <h5>Presigned URL:</h5>
+          <textarea className="form-control" rows="2" readOnly value={presignedUrl}></textarea>
         </div>
       )}
     </div>
-  
-    
-    <h2 className="mb-3">Uploaded Files</h2>
-    <div className="row justify-content-center w-50">
-      {fileList.map((filePath, index) => (
-        <div key={index} className="col-md-6">
-          <div className="card p-3 shadow-sm mb-3 text-center">
-            <p className="mb-2">{filePath.split("/").pop()}</p>
-            <button className="btn btn-success w-100" onClick={() => handleDownload(filePath)}>
-              Download
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
   );
 }
 
